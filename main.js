@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { once } from 'node:events';
 import { Command } from 'commander';
+import superagent from 'superagent';
 
 const program = new Command();
 
@@ -44,26 +45,58 @@ function parseCode(req) {
   return match ? match[1] : null;
 }
 
+async function handleGet(res, code, filePath) {
+  try {
+    const data = await fs.readFile(filePath);
+    res.writeHead(200, {
+      'Content-Type': 'image/jpeg',
+      'Content-Length': data.length,
+      'X-Cache': 'HIT',
+    });
+    return res.end(data);
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err; // інша помилка диска -> 500
+  }
+
+  let data;
+  try {
+    const response = await superagent
+      .get(`https://http.cat/${code}`)
+      .buffer(true)
+      .parse(superagent.parse.image)
+      .timeout({ response: 5000, deadline: 10000 });
+    data = response.body;
+  } catch (err) {
+    console.error(`http.cat error for ${code}:`, err.status ?? err.code ?? err.message);
+    return send(res, 404, 'Not Found: image is not in cache and not available on http.cat');
+  }
+
+  await fs.writeFile(filePath, data);
+  res.writeHead(200, {
+    'Content-Type': 'image/jpeg',
+    'Content-Length': data.length,
+    'X-Cache': 'MISS',
+  });
+  res.end(data);
+}
+
 
 const server = http.createServer(async (req, res) => {
   try {
-    // 1. Метод
     if (!ALLOWED_METHODS.includes(req.method)) {
       return send(res, 405, 'Method Not Allowed', {
         Allow: ALLOWED_METHODS.join(', '),
       });
     }
-
-    // 2. Шлях
     const code = parseCode(req);
     if (code === null) {
       return send(res, 400, 'Bad Request: use /<три цифри>, наприклад /404');
     }
     const filePath = path.join(cacheDir, `${code}.jpg`);
 
-    // 3. Обробка методів (поки заглушки)
     switch (req.method) {
       case 'GET':
+         return await handleGet(res, code, filePath);
       case 'PUT':
       case 'DELETE':
         return send(res, 501, `${req.method} ${filePath}: ще не реалізовано`);
