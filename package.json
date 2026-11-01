@@ -2,7 +2,7 @@
   "name": "lab_5",
   "version": "1.0.0",
   "description": "",
-  "type":"module",
+  "type": "module",
   "main": "main.js",
   "scripts": {
     "start": "node main.js",
@@ -10,5 +10,9 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^15.0.0",
+    "superagent": "^10.4.1"
+  }
 }
