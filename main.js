@@ -25,14 +25,56 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 const cacheDir = path.resolve(cache);
 await fs.mkdir(cacheDir, { recursive: true });
 
+
+
+const ALLOWED_METHODS = ['GET', 'PUT', 'DELETE'];
+
+
+function send(res, status, text, extraHeaders = {}) {
+  res.writeHead(status, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    ...extraHeaders,
+  });
+  res.end(text + '\n');
+}
+
+function parseCode(req) {
+  const { pathname } = new URL(req.url, 'http://localhost');
+  const match = /^\/(\d{3})$/.exec(pathname);
+  return match ? match[1] : null;
+}
+
+
 const server = http.createServer(async (req, res) => {
   try {
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Proxy server is running\n');
+    // 1. Метод
+    if (!ALLOWED_METHODS.includes(req.method)) {
+      return send(res, 405, 'Method Not Allowed', {
+        Allow: ALLOWED_METHODS.join(', '),
+      });
+    }
+
+    // 2. Шлях
+    const code = parseCode(req);
+    if (code === null) {
+      return send(res, 400, 'Bad Request: use /<три цифри>, наприклад /404');
+    }
+    const filePath = path.join(cacheDir, `${code}.jpg`);
+
+    // 3. Обробка методів (поки заглушки)
+    switch (req.method) {
+      case 'GET':
+      case 'PUT':
+      case 'DELETE':
+        return send(res, 501, `${req.method} ${filePath}: ще не реалізовано`);
+    }
   } catch (err) {
     console.error(err);
-    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Internal Server Error\n');
+    if (!res.headersSent) {
+      send(res, 500, 'Internal Server Error');
+    } else {
+      res.end();
+    }
   }
 });
 
