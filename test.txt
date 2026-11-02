@@ -1,0 +1,21 @@
+=== Lab 5: curl tests ===
+
+--- Маршрутизація та помилки ---
+curl -i -X POST http://127.0.0.1:3000/200
+curl -i -X PATCH http://127.0.0.1:3000/200
+curl -i http://127.0.0.1:3000/abc
+curl -i http://127.0.0.1:3000/12345
+curl -i --path-as-is http://127.0.0.1:3000/../etc
+
+--- GET ---
+curl -s -o /dev/null -D - http://127.0.0.1:3000/404
+curl -s -o /dev/null -D - http://127.0.0.1:3000/404
+curl -i http://127.0.0.1:3000/299
+
+--- PUT ---
+curl -i -X PUT --data-binary @my.jpg http://127.0.0.1:3000/200   
+curl -s -o /dev/null -D - http://127.0.0.1:3000/200             
+curl -s -o got.jpg http://127.0.0.1:3000/200
+cmp my.jpg got.jpg                                              
+curl -i -X PUT http://127.0.0.1:3000/200 
+
