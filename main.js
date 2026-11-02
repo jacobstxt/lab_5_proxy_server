@@ -80,6 +80,36 @@ async function handleGet(res, code, filePath) {
   res.end(data);
 }
 
+async function readBody(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+async function handlePut(req, res, filePath) {
+  const body = await readBody(req);
+
+  if (body.length === 0) {
+    return send(res, 400, 'Bad Request: request body is empty');
+  }
+
+  await fs.writeFile(filePath, body);
+  send(res, 201, 'Created');
+}
+
+async function handleDelete(res, filePath) {
+  try {
+    await fs.unlink(filePath);
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return send(res, 404, 'Not Found: image is not in cache');
+    }
+    throw err;
+  }
+  send(res, 200, 'Deleted');
+}
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -98,8 +128,9 @@ const server = http.createServer(async (req, res) => {
       case 'GET':
          return await handleGet(res, code, filePath);
       case 'PUT':
+         return await handlePut(req, res, filePath);
       case 'DELETE':
-        return send(res, 501, `${req.method} ${filePath}: ще не реалізовано`);
+         return await handleDelete(res, filePath);
     }
   } catch (err) {
     console.error(err);
